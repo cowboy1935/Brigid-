@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+   <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
@@ -25,11 +25,21 @@
 
         <div id="imageArea">
             <img id="preview" alt="">
-            <!-- Canvas used for analysis (hidden from user) -->
+            <!-- Hidden analysis canvas -->
             <canvas id="analysisCanvas"></canvas>
         </div>
 
+        <!-- MEMORY CONTROLS (in the natural eye-flow, under the image/report) -->
+        <div id="memoryControls">
+            <button id="saveFlameBtn" disabled>Save Flame</button>
+            <button id="viewMemoryBtn">Memory</button>
+        </div>
+
+        <!-- Whisper Report -->
         <div id="analysisArea"></div>
+
+        <!-- Memory Panel -->
+        <div id="memoryPanel" style="display:none"></div>
     </div>
 
     <script src="brigid.js"></script>

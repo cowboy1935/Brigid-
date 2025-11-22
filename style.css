@@ -34,7 +34,12 @@ button {
     cursor: pointer;
 }
 
-button:hover {
+button:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+
+button:hover:not(:disabled) {
     opacity: 0.85;
 }
 
@@ -48,9 +53,40 @@ button:hover {
     display: none;
 }
 
+/* Canvas is only used internally */
+#analysisCanvas {
+    display: none;
+}
+
+#memoryControls {
+    margin-top: 10px;
+}
+
+/* Whisper report */
 #analysisArea {
-    margin-top: 20px;
+    margin-top: 15px;
     font-size: 18px;
     padding: 10px;
     color: #bcd1ff;
+}
+
+/* Memory panel */
+#memoryPanel {
+    margin-top: 20px;
+    padding: 10px;
+    border-top: 1px solid #18202a;
+    font-size: 14px;
+    color: #d0defc;
+}
+
+.memory-item {
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #1b2530;
+}
+
+.memory-thumb {
+    max-width: 60%;
+    border-radius: 6px;
+    margin-bottom: 4px;
 }

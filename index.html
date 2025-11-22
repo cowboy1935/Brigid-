@@ -25,33 +25,6 @@
 
         <div id="imageArea">
             <img id="preview" alt="">
-        <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Brigid • Flame Whisperer</title>
-
-    <link rel="manifest" href="manifest.json" />
-    <meta name="theme-color" content="#0a0a0a" />
-
-    <link rel="stylesheet" href="style.css" />
-</head>
-
-<body>
-    <div class="app-container">
-        <h1 class="title">BRIGID</h1>
-        <p class="subtitle">Flame Whisperer</p>
-
-        <div class="button-container">
-            <button id="captureBtn">Capture Flame</button>
-            <button id="uploadBtn">Upload Image</button>
-        </div>
-
-        <input type="file" id="fileInput" accept="image/*" style="display:none" />
-
-        <div id="imageArea">
-            <img id="preview" alt="">
             <!-- Canvas used for analysis (hidden from user) -->
             <canvas id="analysisCanvas"></canvas>
         </div>
@@ -62,21 +35,6 @@
     <script src="brigid.js"></script>
 
     <script>
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('service-worker.js');
-        }
-    </script>
-</body>
-</html>
-        </div>
-
-        <div id="analysisArea"></div>
-    </div>
-
-    <script src="brigid.js"></script>
-
-    <script>
-        // PWA install script
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('service-worker.js');
         }

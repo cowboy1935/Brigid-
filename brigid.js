@@ -1,6 +1,5 @@
-// Brigid - Flame Whisperer Engine (with 4-slot Memory + Export Engine)
+// Brigid - Flame Whisperer Engine (with 4-slot Memory + Export)
 
-// Buttons & elements
 const captureBtn = document.getElementById("captureBtn");
 const uploadBtn = document.getElementById("uploadBtn");
 const fileInput = document.getElementById("fileInput");
@@ -10,14 +9,14 @@ const analysisCanvas = document.getElementById("analysisCanvas");
 const ctx = analysisCanvas.getContext("2d");
 
 const saveFlameBtn = document.getElementById("saveFlameBtn");
-const exportFlameBtn = document.getElementById("exportFlameBtn");
+const exportBtn = document.getElementById("exportBtn");
 const viewMemoryBtn = document.getElementById("viewMemoryBtn");
 const memoryPanel = document.getElementById("memoryPanel");
 
 const MEMORY_KEY = "brigid_memory_v1";
 const MAX_SLOTS = 4;
 
-// Holds the last analyzed snapshot so user can save/export
+// Holds the last analyzed snapshot
 let currentSnapshot = null;
 
 // --- Capture / upload handling ---
@@ -71,16 +70,14 @@ function analyzeFlame(imageSrc) {
 
         analysisArea.innerHTML = reportHtml;
 
-        // Save snapshot object for Memory & Export engine
         currentSnapshot = {
             imageSrc,
             reportHtml,
             time: new Date().toISOString()
         };
 
-        // Enable Save + Export now that we have a valid snapshot
         saveFlameBtn.disabled = false;
-        exportFlameBtn.disabled = false;
+        exportBtn.disabled = false;
     };
     img.src = imageSrc;
 }
@@ -197,7 +194,7 @@ function buildWhisperReport(width, height, bbox, stats) {
     const summary =
         "🔥 Brigid Flame Whisper Report<br><br>" +
         `Approx flame coverage: ${(widthRatio * 100).toFixed(1)}% width, ` +
-        `${(heightRatio * 100).toFixed(1)}% height of frame.<br>` +
+        `${(heightRatio * 100).toFixed(1)}% height of frame.<br><br>` +
         `${shapeDesc}<br><br>` +
         `${balanceDesc}<br>` +
         `${stabilityDesc}`;
@@ -205,7 +202,7 @@ function buildWhisperReport(width, height, bbox, stats) {
     return summary;
 }
 
-// --- MEMORY ENGINE (Phase 2A: 4-slot rotating buffer) ---
+// --- MEMORY ENGINE (4-slot rotating buffer) ---
 
 function loadMemory() {
     try {
@@ -227,15 +224,11 @@ function saveMemory(memoryArray) {
     }
 }
 
-// Save currentSnapshot into memory
 saveFlameBtn.addEventListener("click", () => {
-    if (!currentSnapshot) {
-        return;
-    }
+    if (!currentSnapshot) return;
 
     let mem = loadMemory();
-
-    mem.unshift(currentSnapshot);
+    mem.unshift(currentSnapshot); // newest first
 
     if (mem.length > MAX_SLOTS) {
         mem = mem.slice(0, MAX_SLOTS);
@@ -248,7 +241,7 @@ saveFlameBtn.addEventListener("click", () => {
         `Currently storing ${mem.length} snapshot(s).</small>`;
 });
 
-// View memory panel
+// View / hide memory panel
 viewMemoryBtn.addEventListener("click", () => {
     const mem = loadMemory();
     if (memoryPanel.style.display === "none") {
@@ -259,103 +252,6 @@ viewMemoryBtn.addEventListener("click", () => {
     }
 });
 
-// --- EXPORT ENGINE (Phase 2B) ---
-
-// export current snapshot as combined PNG (flame + report)
-exportFlameBtn.addEventListener("click", () => {
-    if (!currentSnapshot) return;
-    exportSnapshot(currentSnapshot, "Brigid_Flame");
-});
-
-// helper to strip HTML tags from report
-function stripHtml(html) {
-    const tmp = document.createElement("div");
-    tmp.innerHTML = html;
-    return (tmp.textContent || tmp.innerText || "").trim();
-}
-
-// main export function
-function exportSnapshot(snapshot, baseName) {
-    const img = new Image();
-    img.onload = () => {
-        const exportCanvas = document.createElement("canvas");
-        const ctx2 = exportCanvas.getContext("2d");
-
-        const targetWidth = 900;
-        const scale = Math.min(targetWidth / img.width, 1);
-        const imgW = img.width * scale;
-        const imgH = img.height * scale;
-
-        const text = stripHtml(snapshot.reportHtml);
-        const lines = wrapText(ctx2, text, targetWidth - 80);
-
-        const padding = 40;
-        const lineHeight = 24;
-        const textHeight = lines.length * lineHeight + 40;
-
-        exportCanvas.width = targetWidth;
-        exportCanvas.height = padding + imgH + padding + textHeight + padding;
-
-        // background
-        ctx2.fillStyle = "#05070b";
-        ctx2.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
-
-        // draw flame image centered
-        const imgX = (targetWidth - imgW) / 2;
-        const imgY = padding;
-        ctx2.drawImage(img, imgX, imgY, imgW, imgH);
-
-        // text block
-        ctx2.fillStyle = "#d9e4ff";
-        ctx2.font = "16px Arial";
-        let tx = 40;
-        let ty = padding + imgH + 40;
-        lines.forEach(line => {
-            ctx2.fillText(line, tx, ty);
-            ty += lineHeight;
-        });
-
-        // subtle watermark
-        ctx2.fillStyle = "#6b8cff";
-        ctx2.font = "14px Arial";
-        const mark = "Brigid • Flame Whisperer";
-        const mw = ctx2.measureText(mark).width;
-        ctx2.fillText(mark, exportCanvas.width - mw - 20, exportCanvas.height - 20);
-
-        const dataUrl = exportCanvas.toDataURL("image/png");
-        const link = document.createElement("a");
-        link.href = dataUrl;
-        link.download = (baseName || "Brigid_Flame") + "_" + Date.now() + ".png";
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    };
-    img.src = snapshot.imageSrc;
-}
-
-// simple text wrapping helper
-function wrapText(ctx2, text, maxWidth) {
-    ctx2.font = "16px Arial";
-    const words = text.split(/\s+/);
-    const lines = [];
-    let line = "";
-
-    words.forEach(word => {
-        const test = line ? line + " " + word : word;
-        const w = ctx2.measureText(test).width;
-        if (w > maxWidth && line) {
-            lines.push(line);
-            line = word;
-        } else {
-            line = test;
-        }
-    });
-
-    if (line) lines.push(line);
-    return lines;
-}
-
-// Memory panel rendering with Export per slot
 function renderMemoryPanel(mem) {
     if (!mem || mem.length === 0) {
         memoryPanel.innerHTML = "<em>No stored flame snapshots yet.</em>";
@@ -367,11 +263,10 @@ function renderMemoryPanel(mem) {
         const time = new Date(item.time).toLocaleString();
         html += `
             <div class="memory-item">
-                <div>Slot M${idx + 1} — ${time}</div>
+                <div><strong>Slot M${idx + 1}</strong> — ${time}</div>
                 <img class="memory-thumb" src="${item.imageSrc}" alt="Flame snapshot ${idx + 1}">
                 <div>
                     <button onclick="BrigidMemory.load(${idx})">Load</button>
-                    <button onclick="BrigidMemory.export(${idx})">Export</button>
                     <button onclick="BrigidMemory.delete(${idx})">Delete</button>
                 </div>
             </div>
@@ -381,7 +276,7 @@ function renderMemoryPanel(mem) {
     memoryPanel.innerHTML = html;
 }
 
-// Expose small helper for inline buttons in memory panel
+// Expose helper for inline buttons
 window.BrigidMemory = {
     load(index) {
         const mem = loadMemory();
@@ -394,7 +289,7 @@ window.BrigidMemory = {
 
         currentSnapshot = item;
         saveFlameBtn.disabled = false;
-        exportFlameBtn.disabled = false;
+        exportBtn.disabled = false;
     },
     delete(index) {
         let mem = loadMemory();
@@ -402,11 +297,65 @@ window.BrigidMemory = {
         mem.splice(index, 1);
         saveMemory(mem);
         renderMemoryPanel(mem);
-    },
-    export(index) {
-        const mem = loadMemory();
-        const item = mem[index];
-        if (!item) return;
-        exportSnapshot(item, "Brigid_Memory_M" + (index + 1));
     }
 };
+
+// --- Export Snapshot (image + report) ---
+
+exportBtn.addEventListener("click", () => {
+    if (!currentSnapshot || !preview.src) return;
+
+    const img = new Image();
+    img.onload = () => {
+        const padding = 20;
+        const fontSize = 16;
+        const lineHeight = 20;
+
+        // Strip HTML tags from report
+        const tempDiv = document.createElement("div");
+        tempDiv.innerHTML = currentSnapshot.reportHtml.replace(/<br\s*\/?>/gi, "\n");
+        const text = tempDiv.innerText;
+
+        const lines = text.split("\n");
+
+        const canvas = document.createElement("canvas");
+        const ctx2 = canvas.getContext("2d");
+
+        const textWidth = 800;
+        const textHeight = lineHeight * (lines.length + 2);
+
+        const exportWidth = Math.max(img.width, textWidth);
+        const exportHeight = img.height + textHeight + padding * 3;
+
+        canvas.width = exportWidth;
+        canvas.height = exportHeight;
+
+        // Background
+        ctx2.fillStyle = "#000000";
+        ctx2.fillRect(0, 0, exportWidth, exportHeight);
+
+        // Draw image
+        ctx2.drawImage(img, (exportWidth - img.width) / 2, padding);
+
+        // Draw text
+        ctx2.fillStyle = "#ffffff";
+        ctx2.font = `${fontSize}px Arial`;
+        let y = img.height + padding * 2;
+        lines.forEach(line => {
+            ctx2.fillText(line, padding, y);
+            y += lineHeight;
+        });
+
+        // Signature
+        ctx2.fillStyle = "#7db4ff";
+        ctx2.font = "14px Arial";
+        ctx2.fillText("Brigid • Flame Whisperer", padding, exportHeight - padding);
+
+        // Download
+        const link = document.createElement("a");
+        link.download = `Brigid_Flame_${new Date().toISOString().replace(/[:.]/g,"-")}.png`;
+        link.href = canvas.toDataURL("image/png");
+        link.click();
+    };
+    img.src = preview.src;
+});

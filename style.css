@@ -48,6 +48,11 @@ button:hover {
     display: none;
 }
 
+/* Canvas is only used for internal analysis */
+#analysisCanvas {
+    display: none;
+}
+
 #analysisArea {
     margin-top: 20px;
     font-size: 18px;

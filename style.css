@@ -1,65 +1,21 @@
-body {
-    margin: 0;
-    background: #0a0f14;
-    color: #e8f0ff;
-    font-family: Arial, sans-serif;
-    text-align: center;
+#memoryControls {
+    margin-top: 10px;
 }
 
-.title {
-    margin-top: 30px;
-    font-size: 38px;
-    letter-spacing: 6px;
-    color: #7db4ff; /* ice blue */
-}
-
-.subtitle {
-    margin-top: -10px;
-    font-size: 16px;
-    color: #9eb6d9;
-}
-
-.button-container {
-    margin-top: 20px;
-}
-
-button {
-    padding: 14px 25px;
-    margin: 10px;
-    font-size: 18px;
-    border: none;
-    border-radius: 8px;
-    background: linear-gradient(135deg, #233b81, #4d7cff);
-    color: white;
-    cursor: pointer;
-}
-
+/* Disabled state */
 button:disabled {
     opacity: 0.45;
     cursor: default;
 }
 
+/* Hover only when enabled */
 button:hover:not(:disabled) {
     opacity: 0.85;
-}
-
-#imageArea {
-    margin-top: 25px;
-}
-
-#preview {
-    max-width: 90%;
-    border-radius: 8px;
-    display: none;
 }
 
 /* Canvas is only used internally */
 #analysisCanvas {
     display: none;
-}
-
-#memoryControls {
-    margin-top: 10px;
 }
 
 /* Whisper report */

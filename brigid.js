@@ -1,5 +1,6 @@
-// Brigid - Flame Whisperer Engine
+// Brigid - Flame Whisperer Engine (with 4-slot Memory)
 
+// Buttons & elements
 const captureBtn = document.getElementById("captureBtn");
 const uploadBtn = document.getElementById("uploadBtn");
 const fileInput = document.getElementById("fileInput");
@@ -7,6 +8,18 @@ const preview = document.getElementById("preview");
 const analysisArea = document.getElementById("analysisArea");
 const analysisCanvas = document.getElementById("analysisCanvas");
 const ctx = analysisCanvas.getContext("2d");
+
+const saveFlameBtn = document.getElementById("saveFlameBtn");
+const viewMemoryBtn = document.getElementById("viewMemoryBtn");
+const memoryPanel = document.getElementById("memoryPanel");
+
+const MEMORY_KEY = "brigid_memory_v1";
+const MAX_SLOTS = 4;
+
+// Holds the last analyzed snapshot so user can decide to save
+let currentSnapshot = null;
+
+// --- Capture / upload handling ---
 
 captureBtn.addEventListener("click", () => {
     fileInput.capture = "environment";
@@ -26,17 +39,19 @@ fileInput.addEventListener("change", event => {
     reader.onload = e => {
         preview.src = e.target.result;
         preview.style.display = "block";
+
         analyzeFlame(e.target.result);
     };
     reader.readAsDataURL(file);
 });
+
+// --- Main flame analysis ---
 
 function analyzeFlame(imageSrc) {
     analysisArea.innerHTML = "🔥 Analyzing flame...";
 
     const img = new Image();
     img.onload = () => {
-        // Downscale to analysis size (auto-adaptive)
         const maxSize = 256;
         let w = img.width;
         let h = img.height;
@@ -51,21 +66,24 @@ function analyzeFlame(imageSrc) {
         const imageData = ctx.getImageData(0, 0, w, h);
         const { mask, bbox, stats } = buildFlameMask(imageData, w, h);
 
-        // Compute whisper report
-        const report = buildWhisperReport(w, h, bbox, stats);
+        const reportHtml = buildWhisperReport(w, h, bbox, stats);
 
-        analysisArea.innerHTML = report;
+        analysisArea.innerHTML = reportHtml;
+
+        // Save snapshot object for Memory Engine
+        currentSnapshot = {
+            imageSrc,
+            reportHtml,
+            time: new Date().toISOString()
+        };
+
+        // Enable Save button now that we have something meaningful
+        saveFlameBtn.disabled = false;
     };
     img.src = imageSrc;
 }
 
-/**
- * Build a simple flame mask based on brightness + blue/orange tint.
- * Returns:
- * - mask: boolean array (true = flame pixel)
- * - bbox: bounding box of flame region
- * - stats: basic stats (left/right intensity, area, etc.)
- */
+// Build flame mask based on brightness + color bias
 function buildFlameMask(imageData, width, height) {
     const data = imageData.data;
     const mask = new Array(width * height).fill(false);
@@ -76,9 +94,8 @@ function buildFlameMask(imageData, width, height) {
     let totalIntensity = 0;
     let count = 0;
 
-    // crude threshold values - we can tune later
-    const brightnessThreshold = 80; // minimum brightness
-    const blueBonus = 1.15; // emphasize blue regions
+    const brightnessThreshold = 80;
+    const blueBonus = 1.15;
 
     for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
@@ -89,7 +106,6 @@ function buildFlameMask(imageData, width, height) {
 
             const brightness = (r + g + b) / 3;
 
-            // emphasize flames: bright + bluish or bright + warm
             const blueScore = b > r && b > g ? blueBonus : 1.0;
             const warmScore = r > b && r > g ? 1.0 : 0.8;
             const flameScore = brightness * blueScore * warmScore;
@@ -114,18 +130,14 @@ function buildFlameMask(imageData, width, height) {
     }
 
     if (count === 0) {
-        // No flame detected
         return {
             mask,
             bbox: null,
-            stats: {
-                detected: false
-            }
+            stats: { detected: false }
         };
     }
 
     const bbox = { minX, maxX, minY, maxY };
-
     const stats = {
         detected: true,
         area: count,
@@ -137,9 +149,7 @@ function buildFlameMask(imageData, width, height) {
     return { mask, bbox, stats };
 }
 
-/**
- * Build a first-draft "whisper report" from the flame geometry.
- */
+// Generate the Whisper Report from geometry + intensity
 function buildWhisperReport(width, height, bbox, stats) {
     if (!stats.detected || !bbox) {
         return "⚠️ Brigid could not clearly see a flame in this image. " +
@@ -192,3 +202,109 @@ function buildWhisperReport(width, height, bbox, stats) {
 
     return summary;
 }
+
+// --- MEMORY ENGINE (Phase 2A: 4-slot rotating buffer) ---
+
+function loadMemory() {
+    try {
+        const raw = localStorage.getItem(MEMORY_KEY);
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return [];
+        return parsed;
+    } catch (e) {
+        return [];
+    }
+}
+
+function saveMemory(memoryArray) {
+    try {
+        localStorage.setItem(MEMORY_KEY, JSON.stringify(memoryArray));
+    } catch (e) {
+        console.warn("Could not save memory:", e);
+    }
+}
+
+// Save currentSnapshot into memory
+saveFlameBtn.addEventListener("click", () => {
+    if (!currentSnapshot) {
+        return;
+    }
+
+    let mem = loadMemory();
+
+    // Newest at the front
+    mem.unshift(currentSnapshot);
+
+    // Limit to MAX_SLOTS
+    if (mem.length > MAX_SLOTS) {
+        mem = mem.slice(0, MAX_SLOTS);
+    }
+
+    saveMemory(mem);
+
+    analysisArea.innerHTML +=
+        "<br><br><small>✅ Saved to Brigid’s memory. " +
+        `Currently storing ${mem.length} snapshot(s).</small>`;
+
+    // Keep button enabled for subsequent saves on new analyses
+});
+
+// View memory panel
+viewMemoryBtn.addEventListener("click", () => {
+    const mem = loadMemory();
+    if (memoryPanel.style.display === "none") {
+        renderMemoryPanel(mem);
+        memoryPanel.style.display = "block";
+    } else {
+        memoryPanel.style.display = "none";
+    }
+});
+
+function renderMemoryPanel(mem) {
+    if (!mem || mem.length === 0) {
+        memoryPanel.innerHTML = "<em>No stored flame snapshots yet.</em>";
+        return;
+    }
+
+    let html = "<h3>Memory</h3>";
+    mem.forEach((item, idx) => {
+        const time = new Date(item.time).toLocaleString();
+        html += `
+            <div class="memory-item">
+                <div>Slot M${idx + 1} — ${time}</div>
+                <img class="memory-thumb" src="${item.imageSrc}" alt="Flame snapshot ${idx + 1}">
+                <div>
+                    <button onclick="BrigidMemory.load(${idx})">Load</button>
+                    <button onclick="BrigidMemory.delete(${idx})">Delete</button>
+                </div>
+            </div>
+        `;
+    });
+
+    memoryPanel.innerHTML = html;
+}
+
+// Expose small helper for inline buttons
+window.BrigidMemory = {
+    load(index) {
+        const mem = loadMemory();
+        const item = mem[index];
+        if (!item) return;
+
+        // Show snapshot back in main view
+        preview.src = item.imageSrc;
+        preview.style.display = "block";
+        analysisArea.innerHTML = item.reportHtml;
+
+        currentSnapshot = item;
+        saveFlameBtn.disabled = false;
+    },
+    delete(index) {
+        let mem = loadMemory();
+        if (index < 0 || index >= mem.length) return;
+        mem.splice(index, 1);
+        saveMemory(mem);
+        renderMemoryPanel(mem);
+    }
+};
